@@ -49,7 +49,7 @@ init = tf.global_variables_initializer()
 with tf.Session() as sess:
     sess.run(init)
     itr = 5
-    for i in range(100000):
+    for i in range(10000):
         x = xx_train[itr-5:itr,:]
         yy = y_train[itr-5:itr,:]
         #yy = np.reshape(yy,[yy.shape[0],10])
