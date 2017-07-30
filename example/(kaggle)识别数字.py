@@ -11,8 +11,6 @@ def reformat(dataset, labels):
     labels = (np.arange(10) == labels[:,None]).astype(np.float32)
     return (dataset, labels)
 
-#scaler = StandardScaler()
-
 data = input_data.read_data_sets('MNIST_data/',one_hot=True)
 Xte = data.train.images.reshape((-1,28,28,1))
 yte = data.train.labels
@@ -20,7 +18,6 @@ yte = data.train.labels
 dataset = pd.read_csv('train.csv',header=None)
 dataset = dataset[1:]
 X = np.array(dataset[list(range(1,785))],dtype='float32')
-#X = scaler.fit_transform(X)
 y = np.array(dataset[0],dtype='float')
 
 X_train,y_train = reformat(X,y)
@@ -39,21 +36,15 @@ X_va,y_va = reformat(X_va,y_va)
 
 W1 = tf.Variable(tf.truncated_normal([5,5,1,32],stddev=0.1))
 W2 = tf.Variable(tf.truncated_normal([5,5,32,64],stddev=0.1))
-#W3 = tf.Variable(tf.truncated_normal([5,5,32,64],stddev=0.1))
-#W4 = tf.Variable(tf.truncated_normal([5,5,64,128],stddev=0.1))
-W5 = tf.Variable(tf.truncated_normal([49*64,2048],stddev=0.1))
-W6 = tf.Variable(tf.truncated_normal([2048,1024],stddev=0.1))
-#W7 = tf.Variable(tf.truncated_normal([512,512],stddev=0.1))
-W8 = tf.Variable(tf.truncated_normal([1024,10],stddev=0.1))
+W3 = tf.Variable(tf.truncated_normal([49*64,2048],stddev=0.1))
+W4= tf.Variable(tf.truncated_normal([2048,1024],stddev=0.1))
+W5 = tf.Variable(tf.truncated_normal([1024,10],stddev=0.1))
 
 b1 = tf.Variable(tf.zeros([32])+0.5)
 b2 = tf.Variable(tf.zeros([64])+0.5)
-#b3 = tf.Variable(tf.zeros([64])+0.5)
-#b4 = tf.Variable(tf.zeros([128])+0.5)
-b5 = tf.Variable(tf.zeros([2048])+0.5)
-b6 = tf.Variable(tf.zeros([1024])+0.5)
-#b7 = tf.Variable(tf.zeros([128])+0.5)
-b8 = tf.Variable(tf.zeros([10])+0.5)
+b3 = tf.Variable(tf.zeros([2048])+0.5)
+b4 = tf.Variable(tf.zeros([1024])+0.5)
+b5 = tf.Variable(tf.zeros([10])+0.5)
 
 
 #======================函数定义==========================
@@ -95,41 +86,22 @@ def Mode(X):
     pool2 = tf.nn.max_pool(lay2,[1,2,2,1],[1,2,2,1],padding='SAME')
 
     #lay3
-    '''
-    h_3 = tf.nn.conv2d(pool2,W3,[1,1,1,1],padding='SAME')
-    h3,update3 = bnorm(h_3,b3,itr,is_test,True)
-    lay3 = tf.nn.relu(h3)
-    pool3 = tf.nn.max_pool(lay3,[1,2,2,1],[1,2,2,1],padding='SAME')
-    '''
-    #lay4暂时pass
+    Shape = [-1,W3.get_shape().as_list()[0]]
+    h_3 = tf.matmul(tf.reshape(pool2,shape=Shape),W3)
+    h3,update3 = bnorm(h_3,b3,itr,is_test)
+    lay_3 = tf.nn.relu(h3)
+    lay3 = tf.nn.dropout(lay_3,keep_drop)
 
-    #lay5
-    Shape = [-1,W5.get_shape().as_list()[0]]
-    h_5 = tf.matmul(tf.reshape(pool2,shape=Shape),W5)
-    h5,update5 = bnorm(h_5,b5,itr,is_test)
-    lay_5 = tf.nn.relu(h5)
-    lay5 = tf.nn.dropout(lay_5,keep_drop)
-
-    #lay6
-    
-    h_6 = tf.matmul(lay5,W6)
-    h6,update6 = bnorm(h_6,b6,itr,is_test)
-    lay_6 = tf.nn.relu(h6)
-    lay6 = tf.nn.dropout(lay_6,keep_drop)
-    
-    #lay7
-    '''
-    h_7 = tf.matmul(lay6,W7)
-    h7,update7 = bnorm(h_7,b7,itr,is_test)
-    lay_7 = tf.nn.relu(h7)
-    lay7 = tf.nn.dropout(lay_7,0.5)
-    '''
+    #lay4
+    h_4 = tf.matmul(lay3,W4)
+    h4,update4 = bnorm(h_4,b4,itr,is_test)
+    lay_4 = tf.nn.relu(h4)
+    lay4 = tf.nn.dropout(lay_4,keep_drop)
 
     #output
-    h8 = tf.matmul(lay6,W8) + b8
-    update_ema = tf.group(update1,update2,update5,update6)
-    return (h8,update_ema)
-    #return h8
+    h5 = tf.matmul(lay4,W5) + b5
+    update_ema = tf.group(update1,update2,update3,update4)
+    return (h5,update_ema)
 #======================函数定义结束==============================
 
 
@@ -158,7 +130,6 @@ with tf.Session() as sess:
     print('开始初始化......')
     init = tf.global_variables_initializer()
     sess.run(init)
-
     batch_size = 50
     step_num = 50000
     total = X_train.shape[0]
